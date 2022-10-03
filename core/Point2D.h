@@ -3,7 +3,8 @@
 
 struct Point2D {
 public:
-    Point2D(int x, int y): x(x), y(y){};
+    Point2D(int x = 0, int y = 0): x(x), y(y){};
+
     int x, y;
     bool operator== (const Point2D& rhs) const;
     bool operator!= (const Point2D& rhs) const;

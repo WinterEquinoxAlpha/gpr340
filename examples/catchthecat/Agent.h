@@ -16,9 +16,8 @@ class Agent
 {
 	public:
 	explicit Agent()= default;
-	virtual Point2D Move(World*)=0;
-	std::unordered_map<int, std::unordered_map<int, bool>> visited;
-	std::unordered_map<int, std::unordered_map<int, Point2D>> from;
+	virtual Point2D Move(World*)= 0;
+
 };
 
 #endif  // AGENT_H
