@@ -8,9 +8,11 @@ Point2D Cat::Move(World* world)
 {
 	std::unordered_map<int, std::unordered_map<int, bool>> visited;
 	std::unordered_map<int, std::unordered_map<int, Point2D>> from;
+	std::vector<Point2D> currentNeighbours;
 
 	visited.clear();
 	from.clear();
+	currentNeighbours.clear();
 
 	Point2D solution = Point2D(0, 0);
 
@@ -26,7 +28,6 @@ Point2D Cat::Move(World* world)
 		visited[head.position.x][head.position.y] = true;
         
 		// for each neighbour
-		std::vector<Point2D> currentNeighbours;
 		currentNeighbours.push_back(World::NE(head.position));
 		currentNeighbours.push_back(World::NW(head.position));
 		currentNeighbours.push_back(World::E(head.position));
@@ -65,7 +66,7 @@ Point2D Cat::Move(World* world)
 				from[n.x][n.y] = head.position;
 			}
 		}
-		
+		currentNeighbours.clear();
 	}
 	return solution;
 }
