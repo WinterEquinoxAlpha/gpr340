@@ -1,7 +1,20 @@
 #include "Catcher.h"
 #include "World.h"
 
-Point2D Catcher::Move(World* world) {
+Point2D Catcher::Move(World* world)
+{
+	std::unordered_map<int, std::unordered_map<int, bool>> visited;
+	std::unordered_map<int, std::unordered_map<int, Point2D>> from;
+	std::vector<queueEntry> queue;
+	Point2D solution = Point2D(0, 0);
+
+	visited.clear();
+	from.clear();
+	queue.clear();
+
+	return solution;
+	
+	/*
 	std::unordered_map<int, std::unordered_map<int, bool>> visited;
 	std::unordered_map<int, std::unordered_map<int, Point2D>> from;
 	std::vector<Point2D> currentNeighbours;
@@ -57,4 +70,5 @@ Point2D Catcher::Move(World* world) {
 		currentNeighbours.clear();
 	}
 	return solution;
+	*/
 }

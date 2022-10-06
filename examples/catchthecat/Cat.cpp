@@ -8,6 +8,26 @@ Point2D Cat::Move(World* world)
 {
 	std::unordered_map<int, std::unordered_map<int, bool>> visited;
 	std::unordered_map<int, std::unordered_map<int, Point2D>> from;
+	std::vector<queueEntry> queue;
+	Point2D solution = Point2D(0, 0);
+
+	visited.clear();
+	from.clear();
+	queue.clear();
+
+	queue.push_back({ world->getCat(), 0 });
+	while (!queue.empty())
+	{
+		std::sort(queue.begin(), queue.end());
+		queueEntry head = queue[0];
+		queue.erase(queue.begin());
+	}
+
+	return solution;
+
+	/*
+	std::unordered_map<int, std::unordered_map<int, bool>> visited;
+	std::unordered_map<int, std::unordered_map<int, Point2D>> from;
 	std::vector<Point2D> currentNeighbours;
 
 	visited.clear();
@@ -20,6 +40,7 @@ Point2D Cat::Move(World* world)
 	queue.push_back({world->getCat(), 0});
 	while (!queue.empty())
 	{
+		std::cout << queue.size() << std::endl;
 		std::sort(queue.begin(), queue.end());
 		// remove the head
 		queueEntry head = queue[0];
@@ -69,4 +90,5 @@ Point2D Cat::Move(World* world)
 		currentNeighbours.clear();
 	}
 	return solution;
+	*/
 }
