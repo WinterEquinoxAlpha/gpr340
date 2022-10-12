@@ -16,3 +16,9 @@ Point2D &Point2D::operator=(const Point2D &rhs) {
   y = rhs.y;
   return *this;
 }
+
+std::ostream& operator << (std::ostream& os, const Point2D& p)
+{
+    os << "X: " << p.x << ", Y: " << p.y;
+    return os;
+}
