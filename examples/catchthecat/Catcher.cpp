@@ -62,6 +62,29 @@ Point2D Catcher::Move(World* world)
 		}
 	}
 
+	Point2D pos = world->getCat();
+	currentNeighbours.clear();
+	currentNeighbours.push_back(World::NE(pos));
+	currentNeighbours.push_back(World::NW(pos));
+	currentNeighbours.push_back(World::E(pos));
+	currentNeighbours.push_back(World::W(pos));
+	currentNeighbours.push_back(World::SW(pos));
+	currentNeighbours.push_back(World::SE(pos));
+	std::random_device rd;
+	std::mt19937 g(rd());
+	std::shuffle(currentNeighbours.begin(), currentNeighbours.end(), g);
+	for (int i = currentNeighbours.size() - 1; i >= 0; --i)
+	{
+		if (world->getContent(currentNeighbours[i]))
+		{
+			currentNeighbours.erase(currentNeighbours.begin() + i);
+		}
+	}
+	if (currentNeighbours.size() > 0)
+	{
+		return currentNeighbours[0];
+	}
+
 	// if all else has failed, return 0,0
 	return Point2D(0, 0);
 }
