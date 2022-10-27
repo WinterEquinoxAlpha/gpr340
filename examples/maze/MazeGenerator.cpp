@@ -1,5 +1,7 @@
 #include "MazeGenerator.h"
 #include "World.h"
-void MazeGenerator::Generate(World* world) {
-  // todo: use getnode or setnode to navigate over the world.
+
+bool MazeGenerator::Step(World* world) {
+  return false;
 }
+void MazeGenerator::Clear(World* world) {}

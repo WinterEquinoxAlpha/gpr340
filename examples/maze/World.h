@@ -1,6 +1,7 @@
 #ifndef MOBAGEN_WORLD_H
 #define MOBAGEN_WORLD_H
 
+#include "ColorT.h"
 #include "GameObject.h"
 #include "MazeGenerator.h"
 #include "Node.h"
@@ -12,12 +13,18 @@ class World: GameObject {
   int sideSize;
 
   MazeGenerator generator;
+  bool isSimulating = false;
+  float timeBetweenAITicks=1;
+  float timeForNextTick=1;
+  int64_t moveDuration=0;
 
   // .=
   // |
   // even indexes are top elements;
   // odd indexes are left elements;
   std::vector<bool> data;
+  // the boxes colors
+  std::vector<Color32> colors;
   // convert a point into the index of the left vertex of the node
   inline int Point2DtoIndex(const Point2D& point){
     // todo: test. unstable interface
@@ -27,12 +34,11 @@ class World: GameObject {
  public:
   explicit World(Engine* pEngine, int size);
 
-  inline Node GetNode(const Point2D& point);
-
-  inline void GetNorth(const Point2D& point);
-  inline void GetEast(const Point2D& point);
-  inline void GetSouth(const Point2D& point);
-  inline void GetWest(const Point2D& point);
+  Node GetNode(const Point2D& point);
+  bool GetNorth(const Point2D& point);
+  bool GetEast(const Point2D& point);
+  bool GetSouth(const Point2D& point);
+  bool GetWest(const Point2D& point);
 
   inline void SetNode(const Point2D& point, const Node& node);
   inline void SetNorth(const Point2D& point, const bool& state);
@@ -46,6 +52,12 @@ class World: GameObject {
   void Update(float deltaTime) override;
 
   void Clear();
+
+  void SetNodeColor(const Point2D& node, const Color32& color);
+
+  int GetSize() const;
+ private:
+  void step();
 };
 
 #endif
