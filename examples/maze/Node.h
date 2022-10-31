@@ -24,6 +24,7 @@ struct Node {
 
   // todo set
   // todo: can you improve this?
+  // answer: yes
   void inline SetNorth(bool x){
     data = (data & ~(1 << 0)) | x << 0;
   };
@@ -35,6 +36,9 @@ struct Node {
   };
   void inline SetWest(bool x){
     data = (data & ~(1 << 3)) | x << 3;
+  };
+  void inline ClearNode(){
+    data = 0;
   };
 };
 
