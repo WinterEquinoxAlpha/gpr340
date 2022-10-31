@@ -1,21 +1,19 @@
 #define SDL_MAIN_HANDLED true
 #include <Engine.h>
-#include "gameobjects/World.h"
-
-// Reference https://github.com/boardtobits/flocking-algorithm
+#include "Manager.h"
 
 // Main code
-int main(int, char**) {
+int main(int, char**)  {
     SDL_Log("Creating Engine");
     auto engine = new Engine();
     SDL_Log("Engine Created");
 
     SDL_Log("Creating World Object");
-    new World(engine);
+    new Manager(engine, 21);
     SDL_Log("World Created");
 
     SDL_Log("Starting Engine");
-    if(engine->Start("Flocking")) {
+    if(engine->Start("Scenario")) {
         SDL_Log("Engine Started");
 
         SDL_Log("Running Engine");
@@ -25,6 +23,7 @@ int main(int, char**) {
 
     SDL_Log("Exiting Engine");
     engine->Exit();
+    delete engine;
     SDL_Log("Engine Exited");
     return 0;
 }

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16.3)
+cmake_minimum_required(VERSION 3.23.2)
 include(cmake/gate/cmake/HunterGate.cmake)
 option(HUNTER_STATUS_DEBUG "Hunter debug info" ON)
 HunterGate(
@@ -12,7 +12,7 @@ project(mobagen)
 set(CMAKE_CXX_STANDARD 17)
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-#set(CMAKE_C_STANDARD 17)
+set(CMAKE_C_STANDARD 17)
 #set(CMAKE_C_STANDARD_REQUIRED ON)
 
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -31,10 +31,13 @@ ENDIF()
 #    SET(MINGW OFF CACHE BOOL "MINGW")
 #ENDIF()
 
-# make this only for VS and not WIN32
-if(DEFINED WIN32 AND NOT DEFINED MINGW)
-    SET(CMAKE_CXX_FLAGS "/w /EHsc")
-endif()
+## make this only for VS and not WIN32
+#if(DEFINED WIN32 AND NOT DEFINED MINGW)
+#    SET(CMAKE_CXX_FLAGS "/w /EHsc")
+#endif()
+
+#set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd")
+#set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD")
 
 # CHECK OR APPLE MACHINE
 IF(NOT DEFINED APPLE)
@@ -56,10 +59,11 @@ if(LSB_RELEASE_EXEC)
 ENDIF()
 
 # make this more general approach
-IF(DEFINED UBUNTU)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
-ENDIF()
+#set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE BOOL "CMAKE_POSITION_INDEPENDENT_CODE")
+#IF(DEFINED UBUNTU)
+#    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+#    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+#ENDIF()
 
 MESSAGE(STATUS "MSYS=${MSYS}")
 MESSAGE(STATUS "CYGWIN=${CYGWIN}")
@@ -75,28 +79,30 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 LINK_DIRECTORIES(${CMAKE_BINARY_DIR}/libs)
 LINK_DIRECTORIES(${CMAKE_BINARY_DIR}/libs/Debug)
 
-add_subdirectory(external)
-
-add_subdirectory(core)
-
 IF(EMSCRIPTEN)
     message(STATUS "emscripten build")
     #  SET(CMAKE_CXX_FLAGS "--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/assets/ -s WASM=0 -s ALLOW_MEMORY_GROWTH=1 -s USE_SDL=2 -s DISABLE_EXCEPTION_CATCHING=2 -s USE_PTHREADS=1 --proxy-to-worker -s FETCH=1")
 #    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --preload-file ${CMAKE_CURRENT_SOURCE_DIR}/assets/ -s WASM=0 -s DISABLE_EXCEPTION_CATCHING=2 --proxy-to-worker -s FETCH=1")
 #    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --preload-file ${CMAKE_CURRENT_SOURCE_DIR}/assets/")
 
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -s WASM=0 -s FULL_ES2=1")
-
-    MESSAGE(STATUS ${CMAKE_CXX_FLAGS})
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -s WASM=0 -s FULL_ES2=1 -s USE_SDL=0 -s EXPORT_ALL=1")
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -s WASM=0 -s FULL_ES2=1 -s USE_SDL=0 -s EXPORT_ALL=1")
 
     add_definitions(-DASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets/")
 
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/html/index.html ${CMAKE_BINARY_DIR}/bin/index.html COPYONLY)
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/html/catchthecat.html ${CMAKE_BINARY_DIR}/bin/catchthecat.html COPYONLY)
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/html/flocking.html ${CMAKE_BINARY_DIR}/bin/flocking.html COPYONLY)
-ELSE()
-    set ( SDL2_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/SDL/include)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/html/maze.html ${CMAKE_BINARY_DIR}/bin/maze.html COPYONLY)
 ENDIF()
+
+set ( SDL2_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/SDL/include)
+# import the generated SDL2 config dir
+
+add_subdirectory(external)
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/external/SDL/include)
+add_subdirectory(core)
 
 #SET(CORE_INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/core)
 
