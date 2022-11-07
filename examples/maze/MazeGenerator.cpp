@@ -4,79 +4,80 @@
 
 bool MazeGenerator::Step(World* world) {
 	int worldSize = world->GetSize()/2;
-	std::vector<Node> from;
-	Node currentNode = world->GetNode(currentPoint);
-	std::vector<std::pair<Point2D,int>> currentNeighbours;
+	std::vector<Point2D> currentNeighbours;
+
+	if (newStart)
+	{
+		newStart = false;
+		currentPoint = Point2D(Random::Range(-worldSize, worldSize), Random::Range(-worldSize, worldSize));
+	}
+
+	visited[currentPoint.x][currentPoint.y] = true;
 
 	currentNeighbours.clear();
-	if (currentNode.GetEast() && currentPoint.x < worldSize)
+	if (currentPoint.x < worldSize && !visited[currentPoint.x + 1][currentPoint.y] && world->GetEast(currentPoint))
 	{
-		currentNeighbours.push_back(std::pair(Point2D(1,0), 0));
+		currentNeighbours.push_back(Point2D(1, 0));
 	}
-	if (currentNode.GetSouth() && currentPoint.y < worldSize)
+	if (currentPoint.x > -worldSize && !visited[currentPoint.x - 1][currentPoint.y] && world->GetWest(currentPoint))
 	{
-		currentNeighbours.push_back(std::pair(Point2D(0, 1), 1));
+		currentNeighbours.push_back(Point2D(-1, 0));
 	}
-	if (currentNode.GetWest() && currentPoint.x > -worldSize)
+	if (currentPoint.y < worldSize && !visited[currentPoint.x][currentPoint.y + 1] && world->GetSouth(currentPoint))
 	{
-		currentNeighbours.push_back(std::pair(Point2D(-1, 0), 2));
+		currentNeighbours.push_back(Point2D(0, 1));
 	}
-	if (currentNode.GetNorth() && currentPoint.y > -worldSize)
+	if (currentPoint.y > -worldSize && !visited[currentPoint.x][currentPoint.y - 1] && world->GetNorth(currentPoint))
 	{
-		currentNeighbours.push_back(std::pair(Point2D(0, -1), 3));
+		currentNeighbours.push_back(Point2D(0, -1));
 	}
-	std::cout << currentNeighbours.size() << std::endl;
 
 	if (currentNeighbours.size() != 0)
 	{
 		int r = Random::Range(0, currentNeighbours.size() - 1);
-		switch (currentNeighbours[r].second)
+		
+		if (currentNeighbours[r].x == 1)
 		{
-			case 0:
-				currentNode.SetEast(false);
-				break;
-			case 1:
-				currentNode.SetSouth(false);
-				break;
-			case 2:
-				currentNode.SetWest(false);
-				break;
-			case 3:
-				currentNode.SetNorth(false);
-				break;
+			world->SetEast(currentPoint, false);
 		}
-		world->SetNode(currentPoint, currentNode);
-		world->SetNodeColor(currentPoint, Color::Red.Dark());
-		currentPoint += currentNeighbours[r].first;
-		world->SetNodeColor(currentPoint, Color::Green);
-	}
+		if (currentNeighbours[r].x == -1)
+		{
+			world->SetWest(currentPoint, false);
+		}
+		if (currentNeighbours[r].y == 1)
+		{
+			world->SetSouth(currentPoint, false);
+		}
+		if (currentNeighbours[r].y == -1)
+		{
+			world->SetNorth(currentPoint, false);
+		}
 
-	/*
-	if (currentNeighbours.size() != 0)
-	{
-		int r = Random::Range(0, currentNeighbours.size() - 1);
-		currentNode.ClearNode();
-		world->SetNode(currentPoint, currentNode);
+		world->SetNodeColor(currentPoint, Color::Blue.Light());
+		previousPoints.push_back(currentPoint);
 		currentPoint += currentNeighbours[r];
-	}*/
-	
-	/*for (int y = -worldSize; y <= worldSize; ++y)
-	{
-		for (int x = -worldSize; x <= worldSize; ++x)
-		{
-			Point2D p = {x, y};
-			world->SetNorth(p, false);
-			world->SetWest(p, false);
-		}
-		world->SetEast({ worldSize, y }, false);
+		world->SetNodeColor(currentPoint, Color::Green.Light());
 	}
-	for (int x = -worldSize; x <= worldSize; ++x)
+	else
 	{
-		world->SetSouth({ x, worldSize }, false);
-	}*/
+		if (previousPoints.empty())
+		{
+			world->SetNodeColor(currentPoint, Color::Black);
+			newStart = true;
+			return false;
+		}
+		world->SetNodeColor(currentPoint, Color::Black);
+		currentPoint = previousPoints.back();
+		previousPoints.pop_back();
+		world->SetNodeColor(currentPoint, Color::Green.Light());
+	}
 	
-	return false;
+	return true;
 }
+
 void MazeGenerator::Clear(World* world) {
-	currentPoint = { 0, 0 };
+	int worldSize = world->GetSize() / 2;
+	newStart = true;
+	visited.clear();
+	previousPoints.clear();
 }
