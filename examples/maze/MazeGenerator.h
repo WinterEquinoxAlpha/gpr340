@@ -15,7 +15,7 @@ class MazeGenerator: public MazeGeneratorBase {
   std::vector<Point2D> previousPoints;
   bool newStart = true;
 
-  std::string GetName() override {return "deprecated";};
+  std::string GetName() override {return "Recursive Back-tracker, but cooler";};
   // todo: in order to step work properly, you have to store your current exploration status in the MazeGenerator members
   // Steps should return true if it made changes in the world
   bool Step(World * world);
