@@ -12,6 +12,7 @@ public:
     bool operator!= (const Point2D& rhs) const;
     Point2D& operator= (const Point2D& rhs);
     Point2D operator- (const Point2D& rhs) const;
+    Point2D operator+ (const Point2D& rhs) const;
     Point2D& operator+= (const Point2D& rhs);
     friend std::ostream& operator << (std::ostream& os, const Point2D& p);
 
