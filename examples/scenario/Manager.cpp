@@ -147,6 +147,18 @@ void Manager::OnGui(ImGuiContext* context)
     {
         isSimulating = false;
     }
+
+    if (ImGui::Button("Toggle Gradient"))
+    {
+        generators[generatorId]->visualizeGradient = !generators[generatorId]->visualizeGradient;
+        step();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Toggle Greyscale"))
+    {
+        generators[generatorId]->greyscale = !generators[generatorId]->greyscale;
+        step();
+    }
     ImGui::End();
 }
 void Manager::Update(float deltaTime)
