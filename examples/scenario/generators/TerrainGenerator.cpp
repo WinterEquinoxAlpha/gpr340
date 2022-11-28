@@ -3,6 +3,7 @@
 #include "../PerlinNoise.hpp"
 #include "Vector2.h"
 #include <iostream>
+#include <cmath>
 
 inline int linearize(int x, int y, int size)
 {
@@ -60,8 +61,8 @@ std::vector<Color32> TerrainGenerator::Generate(int sideSize, float displacement
     noise.reseed(1337);
 
     float rock = 200;
-    float grass = 80;
-    float water = 20;
+    float grass = 180;
+    float water = 130;
 
     for (int y = 0; y < sideSize; y++)
     {
@@ -70,9 +71,9 @@ std::vector<Color32> TerrainGenerator::Generate(int sideSize, float displacement
             float nx = 2.f * x / sideSize - 1;
             float ny = 2.f * y / sideSize - 1;
             float d = 1 - (1 - nx * nx) * (1 - ny * ny);
-            float e = abs(noise.octave3D(x / 50.0, y / 50.0, displacement, octaves) * 255);
-            e += (1 - d) * 255 - 120;
-
+            float n = noise.octave3D(x / 50.0, y / 50.0, displacement, octaves);
+            float e = std::clamp((1 + n) / 2.f, 0.f, 1.f) * 255;
+            e = (e + ((1 - d) * 255.f - 1.f)) / 2.f;
             heights.emplace_back(e);
 
             if (greyscale)
@@ -113,9 +114,10 @@ std::vector<Color32> TerrainGenerator::Generate(int sideSize, float displacement
             {
                 Vector2 p = { (float)x, (float)y };
                 Vector2 g = CalculateGradient(&heights, sideSize, p);
-                float m = p.getMagnitude();
-                //std::cout << m << "\n";
-                colors[linearize(x, y, sideSize)] = Color32(m, m, m);
+                g.x = (g.x + 255.f) / 2.f;
+                g.y = (g.y + 255.f) / 2.f;
+                float m = g.getMagnitude();
+                colors[linearize(x, y, sideSize)] = Color32(g.x, g.y, 0);
             }
         }
     }

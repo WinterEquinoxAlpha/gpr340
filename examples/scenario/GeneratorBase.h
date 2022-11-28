@@ -10,7 +10,7 @@ class ScenarioGeneratorBase {
   virtual std::string GetName()=0;
   int octaves = 2;
   bool visualizeGradient = false;
-  bool greyscale = true;
+  bool greyscale = false;
 };
 
 #endif  // SCENARIOGENERATORBASE_H
