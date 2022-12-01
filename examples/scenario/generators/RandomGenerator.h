@@ -6,6 +6,8 @@
 class RandomScenarioGenerator: public ScenarioGeneratorBase{
  public:
   std::vector<Color32> Generate(int sideSize, float displacement=0) override;
+  std::vector<Color32> Convolve(int sideSize, float displacement=0) override;
+  std::vector<Color32> UpdateColors(int sideSize, float displacement=0) override;
   std::string GetName() override;
 };
 

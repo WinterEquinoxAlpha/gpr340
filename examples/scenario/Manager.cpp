@@ -71,6 +71,7 @@ void Manager::Start()
     for (int i = 0; i < sideSize * sideSize; i++)
         colors[i] = Color::Cyan;
     SetPixels(colors);
+    step();
 }
 void Manager::OnGui(ImGuiContext* context)
 {
@@ -86,6 +87,8 @@ void Manager::OnGui(ImGuiContext* context)
         ImGui::GetIO().Framerate);
     static auto newSize = sideSize;
     static auto newOctave = generators[generatorId]->octaves;
+    static auto newConSteps = generators[generatorId]->convolveSteps;
+    static auto newConIncAmount = generators[generatorId]->conIncreaseAmount;
 
     if (ImGui::SliderInt("Side Size", &newSize, 5, 2048))
     {
@@ -93,7 +96,9 @@ void Manager::OnGui(ImGuiContext* context)
         if (newSize != sideSize)
         {
             sideSize = newSize;
+            isConvoluting = false;
             Clear();
+            step();
         }
     }
 
@@ -102,7 +107,6 @@ void Manager::OnGui(ImGuiContext* context)
         if (newOctave != generators[generatorId]->octaves)
         {
             generators[generatorId]->octaves = newOctave;
-            Clear();
         }
     }
 
@@ -126,8 +130,9 @@ void Manager::OnGui(ImGuiContext* context)
         ImGui::EndCombo();
     }
 
-    if (ImGui::Button("Generate"))
+    if (ImGui::Button("Regenerate"))
     {
+        isConvoluting = false;
         step();
     }
 
@@ -135,6 +140,8 @@ void Manager::OnGui(ImGuiContext* context)
     if (ImGui::Button("Step"))
     {
         isSimulating = false;
+        isConvoluting = false;
+        accumulatedTime += deltaTime;
         step();
     }
     ImGui::SameLine();
@@ -148,16 +155,92 @@ void Manager::OnGui(ImGuiContext* context)
         isSimulating = false;
     }
 
+    ImGui::Text("Gradient");
     if (ImGui::Button("Toggle Gradient"))
     {
         generators[generatorId]->visualizeGradient = !generators[generatorId]->visualizeGradient;
-        step();
+        updateColors();
     }
     ImGui::SameLine();
+    if (ImGui::Button("Gradient Plateau"))
+    {
+        generators[generatorId]->plateau = !generators[generatorId]->plateau;
+        updateColors();
+    }
+
+    std::string gradientTypeName = generators[generatorId]->positiveGradient ? "Positive Gradient" : "Negative Gradient";
+    if (ImGui::BeginCombo("##combo3", gradientTypeName.c_str()))
+    {
+        if (ImGui::Selectable("Positive Gradient", generators[generatorId]->positiveGradient))
+        {
+            generators[generatorId]->positiveGradient = true;
+            updateColors();
+        }
+        if (ImGui::Selectable("Negative Gradient", !generators[generatorId]->positiveGradient))
+        {
+            generators[generatorId]->positiveGradient = false;
+            updateColors();
+        }
+        ImGui::EndCombo();
+    }
+
     if (ImGui::Button("Toggle Greyscale"))
     {
         generators[generatorId]->greyscale = !generators[generatorId]->greyscale;
-        step();
+        updateColors();
+    }
+
+    ImGui::Text("Convolution");
+
+    std::string conName = generators[generatorId]->convolutionTypes[generators[generatorId]->convolutionType];
+    if (ImGui::BeginCombo("##combo2", conName.c_str()))
+    {
+        for (int n = 0; n < generators[generatorId]->convolutionTypes.size(); n++)
+        {
+            bool is_selected = (conName == generators[generatorId]->convolutionTypes[n]);
+            if (ImGui::Selectable(generators[generatorId]->convolutionTypes[n].c_str(), is_selected))
+            {
+                generators[generatorId]->convolutionType = n;
+            }
+            if (is_selected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+
+    if (generators[generatorId]->convolutionTypes[generators[generatorId]->convolutionType] == "Increase")
+    {
+        if (ImGui::SliderFloat("Amount", &newConIncAmount, -10, 10))
+        {
+            if (newConIncAmount != generators[generatorId]->conIncreaseAmount)
+            {
+                generators[generatorId]->conIncreaseAmount = newConIncAmount;
+            }
+        }
+    }
+
+    if (ImGui::Button("Run"))
+    {
+        isConvoluting = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Stop"))
+    {
+        isConvoluting = false;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Step\n"))
+    {
+        isConvoluting = false;
+        convolve();
+    }
+
+    if (ImGui::SliderInt("Steps", &newConSteps, 1, 100))
+    {
+        if (newConSteps != generators[generatorId]->convolveSteps)
+        {
+            generators[generatorId]->convolveSteps = newConSteps;
+        }
     }
     ImGui::End();
 }
@@ -167,6 +250,10 @@ void Manager::Update(float deltaTime)
     {
         accumulatedTime += deltaTime;
         step();
+    }
+    if (isConvoluting)
+    {
+        convolve();
     }
 }
 void Manager::Clear()
@@ -184,6 +271,25 @@ void Manager::step()
 {
     auto start = std::chrono::high_resolution_clock::now();
     auto pixels = generators[generatorId]->Generate(sideSize, accumulatedTime);
+    auto step = std::chrono::high_resolution_clock::now();
+    SetPixels(pixels);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::cout << std::chrono::duration_cast<std::chrono::microseconds>(step - start).count() << " " << std::chrono::duration_cast<std::chrono::microseconds>(end - step).count() << std::endl;
+}
+void Manager::convolve()
+{
+    auto start = std::chrono::high_resolution_clock::now();
+    auto pixels = generators[generatorId]->Convolve(sideSize, accumulatedTime);
+    auto step = std::chrono::high_resolution_clock::now();
+    SetPixels(pixels);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::cout << std::chrono::duration_cast<std::chrono::microseconds>(step - start).count() << " " << std::chrono::duration_cast<std::chrono::microseconds>(end - step).count() << std::endl;
+}
+
+void Manager::updateColors()
+{
+    auto start = std::chrono::high_resolution_clock::now();
+    auto pixels = generators[generatorId]->UpdateColors(sideSize, accumulatedTime);
     auto step = std::chrono::high_resolution_clock::now();
     SetPixels(pixels);
     auto end = std::chrono::high_resolution_clock::now();

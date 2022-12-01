@@ -22,4 +22,25 @@ std::vector<Color32> RandomScenarioGenerator::Generate(int sideSize, float displ
     }
     return colors;
 }
+
+std::vector<Color32> RandomScenarioGenerator::Convolve(int sideSize, float displacement)
+{
+    std::vector<Color32> colors;
+    for (int i = 0; i < sideSize * sideSize; i++)
+    {
+        colors.emplace_back(Color32(0, 0, 0));
+    }
+    return colors;
+}
+
+std::vector<Color32> RandomScenarioGenerator::UpdateColors(int sideSize, float displacement)
+{
+    std::vector<Color32> colors;
+    for (int i = 0; i < sideSize * sideSize; i++)
+    {
+        colors.emplace_back(Color32(0, 0, 0));
+    }
+    return colors;
+}
+
 std::string RandomScenarioGenerator::GetName() { return "EXAMPLE"; }

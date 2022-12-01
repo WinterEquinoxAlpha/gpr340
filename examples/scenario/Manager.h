@@ -12,11 +12,14 @@ class Manager: public GameObject {
   int sideSize=512;
   SDL_Texture *texture;
   bool isSimulating = false;
+  bool isConvoluting = false;
 
   std::vector<ScenarioGeneratorBase*> generators;
   int generatorId=0;
 
   void step();
+  void convolve();
+  void updateColors();
  public:
   ~Manager();
   explicit Manager(Engine* engine, int size);

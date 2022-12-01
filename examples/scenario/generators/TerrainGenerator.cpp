@@ -1,7 +1,6 @@
 #include "TerrainGenerator.h"
 #include "../Noise.h"
 #include "../PerlinNoise.hpp"
-#include "Vector2.h"
 #include <iostream>
 #include <cmath>
 
@@ -46,23 +45,71 @@ inline float QueryEast(std::vector<float>* heights, int sideSize, Vector2 p)
     return (*heights)[linearize(p.x + 1, p.y, sideSize)];
 }
 
-inline Vector2 CalculateGradient(std::vector<float>* heights, int sideSize, Vector2 p)
+inline void SetNorth(std::vector<float>* heights, int sideSize, Vector2 p, float value)
+{
+    if (p.y != 0)
+    {
+        (*heights)[linearize(p.x, p.y - 1, sideSize)] = value;
+    }
+}
+
+inline void SetSouth(std::vector<float>* heights, int sideSize, Vector2 p, float value)
+{
+    if (p.y != sideSize)
+    {
+        (*heights)[linearize(p.x, p.y + 1, sideSize)] = value;
+    }
+}
+
+inline void SetWest(std::vector<float>* heights, int sideSize, Vector2 p, float value)
+{
+    if (p.x != 0)
+    {
+        (*heights)[linearize(p.x - 1, p.y, sideSize)] = value;
+    }
+}
+
+inline void SetEast(std::vector<float>* heights, int sideSize, Vector2 p, float value)
+{
+    if (p.x != sideSize)
+    {
+        (*heights)[linearize(p.x + 1, p.y, sideSize)] = value;
+    }
+}
+
+std::pair<Vector2, Vector2> CalculateGradient(std::vector<float>* heights, int sideSize, Vector2 p)
 {
     // east - west, south - north
-    Vector2 gradient = { QueryEast(heights, sideSize, p) - QueryWest(heights, sideSize, p), QuerySouth(heights, sideSize, p) - QueryNorth(heights, sideSize, p) };
-    return gradient;
+    int index = linearize(p.x, p.y, sideSize);
+    Vector2 positiveGradient = { QueryEast(heights, sideSize, p) - (*heights)[index], QuerySouth(heights, sideSize, p) - (*heights)[index] };
+    Vector2 negativeGradient = { QueryWest(heights, sideSize, p) - (*heights)[index], QueryNorth(heights, sideSize, p) - (*heights)[index] };
+    return std::make_pair(positiveGradient, negativeGradient);
+}
+
+void CalculateGradients(int sideSize, std::vector<float>* heights, std::vector<float>* heightsPlateau, std::vector<std::pair<Vector2, Vector2>>* gradients, std::vector<std::pair<Vector2, Vector2>>* gradientsPlateau)
+{
+    gradients->clear();
+    gradientsPlateau->clear();
+    for (int y = 0; y < sideSize; y++)
+    {
+        for (int x = 0; x < sideSize; x++)
+        {
+            Vector2 p = { (float)x, (float)y };
+            std::pair<Vector2, Vector2> g = CalculateGradient(heightsPlateau, sideSize, p);
+            gradientsPlateau->emplace_back(g);
+            g = CalculateGradient(heights, sideSize, p);
+            gradients->emplace_back(g);
+        }
+    }
 }
 
 std::vector<Color32> TerrainGenerator::Generate(int sideSize, float displacement)
 {
-    std::vector<Color32> colors;
-    std::vector<float> heights;
+    colors.clear();
+    heights.clear();
+    heightsPlateau.clear();
     siv::BasicPerlinNoise<float> noise;
     noise.reseed(1337);
-
-    float rock = 200;
-    float grass = 180;
-    float water = 130;
 
     for (int y = 0; y < sideSize; y++)
     {
@@ -76,53 +123,132 @@ std::vector<Color32> TerrainGenerator::Generate(int sideSize, float displacement
             e = (e + ((1 - d) * 255.f - 1.f)) / 2.f;
             heights.emplace_back(e);
 
-            if (greyscale)
+            for (int i = 0; i < heightColors.size(); ++i)
             {
-                colors.emplace_back(e, e, e);
+                if (e >= heightColors[i].first)
+                {
+                    heightsPlateau.emplace_back(heightColors[i].first);
+                    break;
+                }
+            }
+        }
+    }
+
+    CalculateGradients(sideSize, &heights, &heightsPlateau, &gradients, &gradientsPlateau);
+
+    UpdateColors(sideSize, displacement);
+    return colors;
+}
+
+float ConvolveStep(std::vector<float>* heights, std::vector<std::pair<Vector2, Vector2>>* gradients, int sideSize, Vector2 p, int convolutionType, float incAmount)
+{
+    switch (convolutionType)
+    {
+    case 0:
+        return (QueryEast(heights, sideSize, p) + QueryWest(heights, sideSize, p) + QuerySouth(heights, sideSize, p) + QueryNorth(heights, sideSize, p)) / 4.f;
+    case 1:
+        return std::clamp((*heights)[linearize(p.x, p.y, sideSize)] + incAmount, 0.f, 255.f);
+    case 2:
+        return 255.f - (*heights)[linearize(p.x, p.y, sideSize)];
+    case 3:
+        int index = linearize(p.x, p.y, sideSize);
+        std::pair<Vector2, Vector2> g = (*gradients)[index];
+        Vector2 mag = { g.first.getMagnitude(), g.first.getMagnitude() };
+
+    }
+    return (*heights)[linearize(p.x, p.y, sideSize)];
+}
+
+std::vector<Color32> TerrainGenerator::Convolve(int sideSize, float displacement)
+{
+    if (heights.size() > 0)
+    {
+        for (int i = 0; i < convolveSteps; ++i)
+        {
+            std::vector<float> newHeights;
+            std::vector<float> newHeightsPlateau;
+            for (int y = 0; y < sideSize; y++)
+            {
+                for (int x = 0; x < sideSize; x++)
+                {
+                    Vector2 p = { (float)x, (float)y };
+                    int index = linearize(p.x, p.y, sideSize);
+                    float e;
+                    if (plateau)
+                        e = ConvolveStep(&heights, &gradientsPlateau, sideSize, p, convolutionType, conIncreaseAmount);
+                    else
+                        e = ConvolveStep(&heights, &gradients, sideSize, p, convolutionType, conIncreaseAmount);
+                    newHeights.emplace_back(e);
+
+                    for (int i = 0; i < heightColors.size(); ++i)
+                    {
+                        if (e >= heightColors[i].first)
+                        {
+                            newHeightsPlateau.emplace_back(heightColors[i].first);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            for (int i = 0; i < sideSize * sideSize; ++i)
+            {
+                heights[i] = newHeights[i];
+                heightsPlateau[i] = newHeightsPlateau[i];
+            }
+
+            CalculateGradients(sideSize, &heights, &heightsPlateau, &gradients, &gradientsPlateau);
+        }
+        UpdateColors(sideSize, displacement);
+        return colors;
+    }
+
+    for (int i = 0; i < sideSize * sideSize; ++i)
+    {
+        colors.emplace_back(Color32(0, 0, 0));
+    }
+    return colors;
+}
+
+std::vector<Color32> TerrainGenerator::UpdateColors(int sideSize, float displacement)
+{
+    colors.clear();
+    for (int y = 0; y < sideSize; y++)
+    {
+        for (int x = 0; x < sideSize; x++)
+        {
+            Vector2 p = { (float)x, (float)y };
+            int index = linearize(p.x, p.y, sideSize);
+            if (visualizeGradient)
+            {
+                if (plateau)
+                    if (positiveGradient)
+                        colors.emplace_back(Color32((255.f + gradientsPlateau[index].first.x) / 2.f, (255.f + gradientsPlateau[index].first.y) / 2.f, 127));
+                    else
+                        colors.emplace_back(Color32((255.f + gradientsPlateau[index].second.x) / 2.f, (255.f + gradientsPlateau[index].second.y) / 2.f, 127));
+                else
+                    if (positiveGradient)
+                        colors.emplace_back(Color32((255.f + gradients[index].first.x) / 2.f, (255.f + gradients[index].first.y) / 2.f, 127));
+                    else
+                        colors.emplace_back(Color32((255.f + gradients[index].second.x) / 2.f, (255.f + gradients[index].second.y) / 2.f, 127));
             }
             else
             {
-                if (e > rock)
+                for (int i = 0; i < heightColors.size(); ++i)
                 {
-                    colors.emplace_back(255, 250, 250);
-                }
-                else if (e <= rock && e > grass)
-                {
-                    colors.emplace_back(255, 198, 153);
-                }
-                else if (e <= grass && e > water)
-                {
-                    colors.emplace_back(0, 154, 23);
-                }
-                else if (e <= water)
-                {
-                    colors.emplace_back(35, 137, 218);
-                }
-                else
-                {
-                    throw std::runtime_error("Height out of bounds");
+                    float e = heights[index];
+                    if (e >= heightColors[i].first)
+                    {
+                        if (greyscale)
+                            colors.emplace_back(Color32(e, e, e));
+                        else
+                            colors.emplace_back(heightColors[i].second);
+                        break;
+                    }
                 }
             }
         }
     }
-
-    if (visualizeGradient)
-    {
-        for (int y = 0; y < sideSize; y++)
-        {
-            for (int x = 0; x < sideSize; x++)
-            {
-                Vector2 p = { (float)x, (float)y };
-                Vector2 g = CalculateGradient(&heights, sideSize, p);
-                g.x = (g.x + 255.f) / 2.f;
-                g.y = (g.y + 255.f) / 2.f;
-                float m = g.getMagnitude();
-                colors[linearize(x, y, sideSize)] = Color32(g.x, g.y, 0);
-            }
-        }
-    }
-
-    std::cout << colors.size() << std::endl;
     return colors;
 }
 
