@@ -19,10 +19,10 @@ public:
 	float conIncreaseAmount = 0.1;
 	int convolutionType = 3;
 	std::vector<std::string> convolutionTypes = {
-		"Average",
 		"Increase",
 		"Invert",
-		"Gradient Descent"
+		"Thermal Erosion",
+		"Hydraulic Erosion"
 	};
 };
 
