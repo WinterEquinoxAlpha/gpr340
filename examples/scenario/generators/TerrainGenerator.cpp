@@ -77,16 +77,19 @@ inline void SetEast(std::vector<float>* heights, int sideSize, Vector2 p, float 
 	}
 }
 
-std::pair<Vector2, Vector2> CalculateGradient(std::vector<float>* heights, int sideSize, Vector2 p)
+std::vector<float> CalculateGradient(std::vector<float>* heights, int sideSize, Vector2 p)
 {
-	// east - west, south - north
 	int index = linearize(p.x, p.y, sideSize);
-	Vector2 positiveGradient = { QueryEast(heights, sideSize, p) - (*heights)[index], QuerySouth(heights, sideSize, p) - (*heights)[index] };
-	Vector2 negativeGradient = { QueryWest(heights, sideSize, p) - (*heights)[index], QueryNorth(heights, sideSize, p) - (*heights)[index] };
-	return std::make_pair(positiveGradient, negativeGradient);
+	// Positive gradients
+	float e = QueryEast(heights, sideSize, p) - (*heights)[index];
+	float s = QuerySouth(heights, sideSize, p) - (*heights)[index];
+	// Negative gradients
+	float w = QueryWest(heights, sideSize, p) - (*heights)[index];
+	float n = QueryNorth(heights, sideSize, p) - (*heights)[index];
+	return std::vector<float> {e, s, w, n};
 }
 
-void CalculateGradients(int sideSize, std::vector<float>* heights, std::vector<float>* heightsPlateau, std::vector<std::pair<Vector2, Vector2>>* gradients, std::vector<std::pair<Vector2, Vector2>>* gradientsPlateau)
+void CalculateGradients(int sideSize, std::vector<float>* heights, std::vector<float>* heightsPlateau, std::vector<std::vector<float>>* gradients, std::vector<std::vector<float>>* gradientsPlateau)
 {
 	gradients->clear();
 	gradientsPlateau->clear();
@@ -95,7 +98,7 @@ void CalculateGradients(int sideSize, std::vector<float>* heights, std::vector<f
 		for (int x = 0; x < sideSize; x++)
 		{
 			Vector2 p = { (float)x, (float)y };
-			std::pair<Vector2, Vector2> g = CalculateGradient(heightsPlateau, sideSize, p);
+			std::vector<float> g = CalculateGradient(heightsPlateau, sideSize, p);
 			gradientsPlateau->emplace_back(g);
 			g = CalculateGradient(heights, sideSize, p);
 			gradients->emplace_back(g);
@@ -140,7 +143,16 @@ std::vector<Color32> TerrainGenerator::Generate(int sideSize, float displacement
 	return colors;
 }
 
-float ConvolveStep(std::vector<float>* heights, std::vector<std::pair<Vector2, Vector2>>* gradients, int sideSize, Vector2 p, int convolutionType, float incAmount)
+float ConvolveStep(std::vector<float>* heights,
+				   std::vector<std::vector<float>>* gradients,
+				   int sideSize,
+				   Vector2 p,
+				   int convolutionType,
+				   float incAmount,
+				   std::vector<float>* waterVolume,
+				   std::vector<float>* materialVolume,
+				   std::vector<float>* pMaterialVolume,
+				   std::vector<float[4]>* waterFlow)
 {
 	switch (convolutionType)
 	{
@@ -151,16 +163,43 @@ float ConvolveStep(std::vector<float>* heights, std::vector<std::pair<Vector2, V
 	case 2: // Thermal Erosion
 		return (QueryEast(heights, sideSize, p) + QueryWest(heights, sideSize, p) + QuerySouth(heights, sideSize, p) + QueryNorth(heights, sideSize, p)) / 4.f;
 	case 3: // Hydraulic Erosion
-		int index = linearize(p.x, p.y, sideSize);				// The index of the current pixel in the image
-		std::pair<Vector2, Vector2> g = (*gradients)[index];	// The gradient for each direction of that pixel (E S W N)
-		float waterVolume = 0.0f;								// The amount of water on the current pixel
-		float materialVolume = 0.0f;							// The amount of material in the water
-		float pMaterialVolume = materialVolume;					// The previous amount of material
-		float waterFlow[4] = {0.0f, 0.0f, 0.0f, 0.0f};			// The amount of water that will flow in each direction
-		Vector2 waterVelocity = {0.0f, 0.0f};					// The overall velocity of the water
+		int index = linearize(p.x, p.y, sideSize);								// The index of the current pixel in the image
+		std::vector<float> g = (*gradients)[index];								// The elevation gradient for each direction of that pixel (E S W N)
+		std::vector<float> wg = CalculateGradient(waterVolume, sideSize, p);	// The water gradient for each direction of that pixel (E S W N)
+
+		Vector2 waterVelocity;	// The overall velocity of the water
+		float rainfall = 1.0f;	// The amout of water that is added each step
+		float flowRate = 1.0f;	// The rate of flow of water from one pixel to another
 
 		// Simulate rainfall
-		waterVolume++;
+		(*waterVolume)[index] += rainfall;
+		float currentWater = (*waterVolume)[index];
+
+		// Calculate the total water flow
+		float totalFlow = 0;
+		for (int i = 0; i < 4; ++i)
+		{
+			float dh = g[i];
+			float dw = wg[i];
+			(*waterFlow)[index][i] += flowRate * (dh + dw);
+			(*waterFlow)[index][i] = std::max(0.0f, (*waterFlow)[index][i]);
+			totalFlow += (*waterFlow)[index][i];
+		}
+		if (totalFlow > currentWater)
+		{
+			float prop = currentWater / totalFlow;
+			for (int i = 0; i < 4; ++i)
+			{
+				(*waterFlow)[index][i] *= prop;
+			}
+		}
+		float hOut = (*waterFlow)[index][0] - (*waterFlow)[index][2];
+		float hIn = (*waterFlow)[linearize(p.x + 1, p.y, sideSize)][2] - (*waterFlow)[linearize(p.x - 1, p.y, sideSize)][0];
+		float vOut = (*waterFlow)[index][1] - (*waterFlow)[index][3];
+		float vIn = (*waterFlow)[linearize(p.x, p.y + 1, sideSize)][3] - (*waterFlow)[linearize(p.x, p.y - 1, sideSize)][1];
+		waterVelocity = {hOut + hIn, vOut + vIn};
+
+		// 
 	}
 	return (*heights)[linearize(p.x, p.y, sideSize)];
 }
@@ -171,6 +210,12 @@ std::vector<Color32> TerrainGenerator::Convolve(int sideSize, float displacement
 	{
 		for (int i = 0; i < convolveSteps; ++i)
 		{
+			// For hydraulic erosion
+			std::vector<float> waterVolume;							// The amount of water on the current pixel
+			std::vector<float> materialVolume;						// The amount of material in the water
+			std::vector<float> pMaterialVolume = materialVolume;	// The previous amount of material
+			std::vector<float[4]> waterFlow;						// The amount of water that will flow in each direction
+			
 			std::vector<float> newHeights;
 			std::vector<float> newHeightsPlateau;
 			for (int y = 0; y < sideSize; y++)
@@ -181,9 +226,9 @@ std::vector<Color32> TerrainGenerator::Convolve(int sideSize, float displacement
 					int index = linearize(p.x, p.y, sideSize);
 					float e;
 					if (plateau)
-						e = ConvolveStep(&heights, &gradientsPlateau, sideSize, p, convolutionType, conIncreaseAmount);
+						e = ConvolveStep(&heights, &gradientsPlateau, sideSize, p, convolutionType, conIncreaseAmount, &waterVolume, &materialVolume, &pMaterialVolume, &waterFlow);
 					else
-						e = ConvolveStep(&heights, &gradients, sideSize, p, convolutionType, conIncreaseAmount);
+						e = ConvolveStep(&heights, &gradients, sideSize, p, convolutionType, conIncreaseAmount, &waterVolume, &materialVolume, &pMaterialVolume, &waterFlow);
 					newHeights.emplace_back(e);
 
 					for (int i = 0; i < heightColors.size(); ++i)
@@ -229,14 +274,14 @@ std::vector<Color32> TerrainGenerator::UpdateColors(int sideSize, float displace
 			{
 				if (plateau)
 					if (positiveGradient)
-						colors.emplace_back(Color32((255.f + gradientsPlateau[index].first.x) / 2.f, (255.f + gradientsPlateau[index].first.y) / 2.f, 127));
+						colors.emplace_back(Color32((255.f + gradientsPlateau[index][0]) / 2.f, (255.f + gradientsPlateau[index][1]) / 2.f, 127));
 					else
-						colors.emplace_back(Color32((255.f + gradientsPlateau[index].second.x) / 2.f, (255.f + gradientsPlateau[index].second.y) / 2.f, 127));
+						colors.emplace_back(Color32((255.f + gradientsPlateau[index][2]) / 2.f, (255.f + gradientsPlateau[index][3]) / 2.f, 127));
 				else
 					if (positiveGradient)
-						colors.emplace_back(Color32((255.f + gradients[index].first.x) / 2.f, (255.f + gradients[index].first.y) / 2.f, 127));
+						colors.emplace_back(Color32((255.f + gradients[index][0]) / 2.f, (255.f + gradients[index][1]) / 2.f, 127));
 					else
-						colors.emplace_back(Color32((255.f + gradients[index].second.x) / 2.f, (255.f + gradients[index].second.y) / 2.f, 127));
+						colors.emplace_back(Color32((255.f + gradients[index][2]) / 2.f, (255.f + gradients[index][3]) / 2.f, 127));
 			}
 			else
 			{

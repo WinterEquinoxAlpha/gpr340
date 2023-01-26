@@ -14,8 +14,8 @@ public:
 	std::vector<Color32> colors;
 	std::vector<float> heights;
 	std::vector<float> heightsPlateau;
-	std::vector<std::pair<Vector2, Vector2>> gradients;
-	std::vector<std::pair<Vector2, Vector2>> gradientsPlateau;
+	std::vector<std::vector<float>> gradients;
+	std::vector<std::vector<float>> gradientsPlateau;
 
 	std::vector<std::pair<int, Color32>> heightColors =
 	{
