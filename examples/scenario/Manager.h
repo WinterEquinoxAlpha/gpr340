@@ -9,7 +9,7 @@
 class Manager: public GameObject {
  private:
   float accumulatedTime = 0;
-  int sideSize=512;
+  int sideSize=5;
   SDL_Texture *texture;
   bool isSimulating = false;
   bool isConvoluting = false;

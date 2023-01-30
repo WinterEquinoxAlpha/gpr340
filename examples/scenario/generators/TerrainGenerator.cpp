@@ -98,9 +98,12 @@ void CalculateGradients(int sideSize, std::vector<float>* heights, std::vector<f
 		for (int x = 0; x < sideSize; x++)
 		{
 			Vector2 p = { (float)x, (float)y };
+			//std::cout << "p: " << p.x << "," << p.y << "\n";
 			std::vector<float> g = CalculateGradient(heightsPlateau, sideSize, p);
+			//std::cout << "plateau g: " << g[0] << "," << g[1] << "," << g[2] << "," << g[3] << "\n";
 			gradientsPlateau->emplace_back(g);
 			g = CalculateGradient(heights, sideSize, p);
+			//std::cout << "normal g: " << g[0] << "," << g[1] << "," << g[2] << "," << g[3] << "\n";
 			gradients->emplace_back(g);
 		}
 	}
@@ -170,11 +173,13 @@ float ConvolveStep(std::vector<float>* heights,
 
 		Vector2 waterVelocity;			// The overall velocity of the water
 		float rainfall = 1.0f;			// The amout of water that is added each step
-		float flowRate = 1.0f;			// The rate of flow of water from one pixel to another
+		float flowRate = 0.5f;			// The rate of flow of water from one pixel to another
 		float pickThreshold = 1.0f;		// The speed at which water will start to pick up material
 		float dropThreshold = 1.0f;		// The speed at which water will start to drop off material
 		float solubility = 1.0f;		// Ease of the material to be picked up
 		float evaporation = 0.9f;		// Percent of water that evaporates
+
+		//std::cout << "Beginning: " << (*materialVolume)[index] << "\n";
 
 		// Step 1: Simulate rainfall
 		(*waterVolume)[index] += rainfall;
@@ -183,15 +188,22 @@ float ConvolveStep(std::vector<float>* heights,
 		float totalFlow = 0;
 		for (int i = 0; i < 4; ++i)
 		{
+			//std::cout << "----------------- Calculate Flow Loop -----------------" << "\n";
 			float dh = g[i];
 			float dw = wg[i];
+			//std::cout << "dh: " << dh << "\n";
+			//std::cout << "dw: " << dw << "\n";
 			(*waterFlow)[index][i] += flowRate * (dh + dw);
+			//std::cout << "waterFlow 1: " << (*waterFlow)[index][i] << "\n";
 			(*waterFlow)[index][i] = std::max(0.0f, (*waterFlow)[index][i]);
+			//std::cout << "waterFlow 2: " << (*waterFlow)[index][i] << "\n";
 			totalFlow += (*waterFlow)[index][i];
+			//std::cout << "totalFlow: " << totalFlow << "\n";
 		}
 		if (totalFlow > (*waterVolume)[index])
 		{
 			float prop = (*waterVolume)[index] / totalFlow;
+			prop = std::max(0.0f, prop);
 			for (int i = 0; i < 4; ++i)
 			{
 				(*waterFlow)[index][i] *= prop;
@@ -219,20 +231,22 @@ float ConvolveStep(std::vector<float>* heights,
 		{
 			float pick = waterSpeed * solubility;
 			(*materialVolume)[index] += pick;
+			//std::cout << "waterSpeed > pickThreshold: " << (*materialVolume)[index] << "\n";
 			newHeight -= pick;
 		}
-		if (waterSpeed < dropThreshold)
+		else if (waterSpeed < dropThreshold)
 		{
 			float prop = (dropThreshold - waterSpeed) / dropThreshold;
 			float drop = prop * (*materialVolume)[index];
-			std::cout << (*materialVolume)[index] << std::endl;
-			std::cout << "P: " << prop << ", D: " << drop << std::endl;
+			//std::cout << "WS: " << waterSpeed << ", P: " << prop << ", D: " << drop << "\n";
 			(*materialVolume)[index] -= drop;
+			//std::cout << "waterSpeed < pickThreshold: " << (*materialVolume)[index] << "\n";
 			newHeight += drop;
 		}
 
 		// Save the material info
 		(*pMaterialVolume)[index] = (*materialVolume)[index];
+		//std::cout << "pMaterialVolume: " << (*pMaterialVolume)[index] << "\n";
 
 		// Step 4: Move the water
 		float directions[4][2] = {{1,0},{0,1},{-1,0},{0,-1}};
@@ -240,7 +254,14 @@ float ConvolveStep(std::vector<float>* heights,
 		{
 			float currentWaterFlow = (*waterFlow)[index][i];
 			float prop = currentWaterFlow / totalFlow;
+			prop = std::max(0.0f, prop);
 			float materialFlow = prop * (*pMaterialVolume)[index];
+
+			//std::cout << "----------------- Move Water Loop -----------------" << "\n";
+			//std::cout << "currentWaterFlow: " << currentWaterFlow << "\n";
+			//std::cout << "totalFlow: " << totalFlow << "\n";
+			//std::cout << "prop: " << prop << "\n";
+			//std::cout << "materialFlow: " << materialFlow << "\n";
 
 			Vector2 dd = {p.x + directions[i][0], p.y + directions[i][1]};
 			if (dd.x < 0 || dd.x >= sideSize)
@@ -252,11 +273,16 @@ float ConvolveStep(std::vector<float>* heights,
 			(*waterVolume)[linearize(dd.x, dd.y, sideSize)] += currentWaterFlow;
 
 			(*materialVolume)[index] -= materialFlow;
+			//std::cout << "-= materialFlow: " << (*materialVolume)[index] << "\n";
 			(*materialVolume)[linearize(dd.x, dd.y, sideSize)] += materialFlow;
+			//std::cout << "+= materialFlow: " << (*materialVolume)[index] << "\n";
 		}
 
 		// Step 5: Evaporate water
 		(*waterVolume)[index] *= (1 - evaporation);
+
+		//std::cout << "End: " << (*materialVolume)[index] << "\n";
+		//std::cout << "currentHeight: " << (*heights)[index] << ", newHeight: " << newHeight << "\n\n";
 
 		return newHeight;
 	}
